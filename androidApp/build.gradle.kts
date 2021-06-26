@@ -74,6 +74,14 @@ android {
     }
 }
 
+kotlin {
+    sourceSets.all {
+        languageSettings.apply {
+            useExperimentalAnnotation("kotlin.RequiresOptIn")
+        }
+    }
+}
+
 dependencies {
     implementation(project(":shared"))
     //desugar utils
