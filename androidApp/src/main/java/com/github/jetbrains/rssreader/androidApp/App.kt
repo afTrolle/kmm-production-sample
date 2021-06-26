@@ -17,7 +17,6 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        INSTANCE = this
         initKoin()
         launchBackgroundSync()
     }
@@ -41,8 +40,4 @@ class App : Application() {
         RefreshWorker.enqueue(this)
     }
 
-    companion object {
-        internal lateinit var INSTANCE: App
-            private set
-    }
 }
