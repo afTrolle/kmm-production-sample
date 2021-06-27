@@ -13,20 +13,15 @@ data class Feed(
     @SerialName("sourceUrl") val sourceUrl: String,
     @SerialName("isDefault") val isDefault: Boolean
 ) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other == null || this::class != other::class) return false
-
-        other as Feed
-
-        if (sourceUrl != other.sourceUrl) return false
-
-        return true
+    override fun equals(other: Any?): Boolean = when {
+        this === other -> true
+        other == null -> false
+        other::class != Feed::class -> false
+        other is Feed && sourceUrl != other.sourceUrl -> false
+        else -> true
     }
 
-    override fun hashCode(): Int {
-        return sourceUrl.hashCode()
-    }
+    override fun hashCode(): Int = sourceUrl.hashCode()
 }
 
 @Serializable
