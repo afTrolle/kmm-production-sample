@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,12 +28,25 @@ import java.util.*
 
 @Composable
 fun FeedIcon(
-    feed: Feed?,
+    feed: Feed? = null,
+    isSelected: Boolean = false,
+    onClick: (() -> Unit)? = null
+) = FeedIcon(
+    iconUrl = feed?.imageUrl,
+    shortName = feed?.shortName(),
+    isSelected = isSelected,
+    onClick = onClick
+)
+
+@Composable
+fun FeedIcon(
+    iconUrl: String? = null,
+    shortName: String? = null,
     isSelected: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
     val txtAll = stringResource(R.string.all)
-    val shortName = remember(feed) { feed?.shortName() ?: txtAll }
+    val name = shortName ?: txtAll
     Box(
         modifier = Modifier
             .size(48.dp)
@@ -54,9 +66,9 @@ fun FeedIcon(
             Text(
                 modifier = Modifier.align(Alignment.Center),
                 color = MaterialTheme.colors.onPrimary,
-                text = shortName
+                text = name
             )
-            feed?.imageUrl?.let { url ->
+            iconUrl?.let { url ->
                 Image(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,

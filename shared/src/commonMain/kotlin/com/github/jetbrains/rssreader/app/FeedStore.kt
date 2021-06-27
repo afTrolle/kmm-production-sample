@@ -1,5 +1,7 @@
 package com.github.jetbrains.rssreader.app
 
+import com.github.jetbrains.rssreader.app.ext.containsFilter
+import com.github.jetbrains.rssreader.app.model.Filter
 import com.github.jetbrains.rssreader.core.RssReader
 import com.github.jetbrains.rssreader.core.entity.Feed
 import io.github.aakira.napier.Napier
@@ -12,17 +14,34 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 data class FeedState(
-    val progress: Boolean,
-    val feeds: List<Feed>,
-    val selectedFeed: Feed? = null //null means selected all
-) : State
+    val progress: Boolean = false,
+    val filters: List<Filter> = listOf(
+        Filter("Compose"),
+    ),
+    val feeds: List<Feed> = emptyList(),
+    val selectedFeed: Feed? = null // null means selected all
+) : State {
 
-fun FeedState.mainFeedPosts() = (selectedFeed?.posts ?: feeds.flatMap { it.posts }).sortedByDescending { it.date }
+    private val filteringEnabled = filters.any { it.enabled }
+
+    val postsFeed by lazy(LazyThreadSafetyMode.NONE) {
+        val postsFeed = (selectedFeed?.posts ?: feeds.flatMap { it.posts })
+        if (filteringEnabled) {
+            postsFeed.filter { post ->
+                post.containsFilter(filters)
+            }
+        } else {
+            postsFeed
+        }.sortedByDescending { it.date }
+    }
+
+}
 
 sealed class FeedAction : Action {
     data class Refresh(val forceLoad: Boolean) : FeedAction()
     data class Add(val url: String) : FeedAction()
     data class Delete(val url: String) : FeedAction()
+    data class SelectFilter(val filter: Filter) : FeedAction()
     data class SelectFeed(val feed: Feed?) : FeedAction()
     data class Data(val feeds: List<Feed>) : FeedAction()
     data class Error(val error: Exception) : FeedAction()
@@ -37,7 +56,7 @@ class FeedStore(
 ) : Store<FeedState, FeedAction, FeedSideEffect>,
     CoroutineScope by CoroutineScope(Dispatchers.Main) {
 
-    private val state = MutableStateFlow(FeedState(false, emptyList()))
+    private val state = MutableStateFlow(FeedState())
     private val sideEffect = MutableSharedFlow<FeedSideEffect>()
 
     override fun observeState(): StateFlow<FeedState> = state
@@ -64,7 +83,10 @@ class FeedStore(
                     oldState
                 } else {
                     launch { addFeed(action.url) }
-                    FeedState(true, oldState.feeds)
+                    oldState.copy(
+                        progress = true,
+                        selectedFeed = null
+                    )
                 }
             }
             is FeedAction.Delete -> {
@@ -73,8 +95,21 @@ class FeedStore(
                     oldState
                 } else {
                     launch { deleteFeed(action.url) }
-                    FeedState(true, oldState.feeds)
+                    oldState.copy(
+                        progress = true,
+                        selectedFeed = null
+                    )
                 }
+            }
+            is FeedAction.SelectFilter -> {
+                val filters = oldState.filters.map {
+                    if (action.filter.text == it.text) {
+                        it.copy(enabled = !it.enabled)
+                    } else {
+                        it
+                    }
+                }
+                oldState.copy(filters = filters)
             }
             is FeedAction.SelectFeed -> {
                 if (action.feed == null || oldState.feeds.contains(action.feed)) {
@@ -89,7 +124,11 @@ class FeedStore(
                     val selected = oldState.selectedFeed?.let {
                         if (action.feeds.contains(it)) it else null
                     }
-                    FeedState(false, action.feeds, selected)
+                    oldState.copy(
+                        progress = false,
+                        feeds = action.feeds,
+                        selectedFeed = selected
+                    )
                 } else {
                     launch { sideEffect.emit(FeedSideEffect.Error(Exception("Unexpected action"))) }
                     oldState
@@ -98,7 +137,10 @@ class FeedStore(
             is FeedAction.Error -> {
                 if (oldState.progress) {
                     launch { sideEffect.emit(FeedSideEffect.Error(action.error)) }
-                    FeedState(false, oldState.feeds)
+                    oldState.copy(
+                        progress = false,
+                        selectedFeed = null
+                    )
                 } else {
                     launch { sideEffect.emit(FeedSideEffect.Error(Exception("Unexpected action"))) }
                     oldState
