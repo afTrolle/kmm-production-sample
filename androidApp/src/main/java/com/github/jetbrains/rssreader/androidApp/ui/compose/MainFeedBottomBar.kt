@@ -51,7 +51,6 @@ fun MainFeedBottomBar(
                 is Icons.FilterIcon -> FeedIcon(
                     shortName = item.filter.name,
                     isSelected = item.filter.enabled,
-                    description = item.filter.text,
                     onClick = { onFilterClick(item.filter) }
                 )
                 is Icons.Divider -> Box(
